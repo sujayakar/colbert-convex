@@ -12,29 +12,42 @@ chunk_size = 256
 chunk_overlap = min(chunk_size / 4, min(chunk_size / 2, 64))
 node_parser = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
-@app.route("/api/embed_documents", methods=['POST'])
-def embed_documents():
+@app.route('/api/split_document', methods=['POST'])
+def split_document():
+    request_data = request.get_json()
+    text = request_data.get('text')
+
+    results = []
+    for node in node_parser.get_nodes_from_documents([Document(doc_id='<root>', text=text)]):
+        results.append({
+            'text': node.text,
+            'start': node.start_char_idx,
+            'end': node.end_char_idx,
+        })
+    return jsonify(results)
+
+@app.route("/api/embed_document", methods=['POST'])
+def embed_document():
     # Get JSON payload from request
     request_data = request.get_json()
-    documents_dict = request_data.get('documents', {})
+    document = request_data.get('document')
+    if not document or not isinstance(document, str):
+        raise ValueError('Invalid document')
 
-    # Extract text strings while keeping track of IDs
-    texts = []
-    id_order = []
-    for doc_id, text in documents_dict.items():        
-        doc = Document(doc_id=doc_id, text=text)
-        for node in node_parser.get_nodes_from_documents([doc]):        
-            texts.append(node.text)
-            id_order.append(doc_id)
-    
-    # Compute embeddings
-    embeddings = embedding_model.embed(texts, parallel=0)
-    
-    # Create response mapping IDs to embeddings
-    result = collections.defaultdict(list)
-    for doc_id, text_embeddings in zip(id_order, embeddings):
-        for text_embedding in text_embeddings.tolist():
-            result[doc_id].append(text_embedding)
+    embeddings = list(embedding_model.embed([document]))[0].tolist()
+    encoding = embedding_model.model.tokenize([document])[0]
+    offsets = list(encoding.offsets)
+
+    # See `colbert.py:_preprocess_onnx_input`: we insert a special marker token at offset 1.
+    assert len(offsets) + 1 == len(embeddings), f"Offsets length {len(encoding.offsets)} does not match embeddings length {len(embeddings)}"
+    offsets.insert(1, [0, 0])
+    result = []
+    for embedding, offsets in zip(embeddings, offsets):        
+        result.append({
+            'embedding': embedding,
+            'start': offsets[0],
+            'end': offsets[1],
+        })
 
     return jsonify(result)    
 
@@ -42,5 +55,15 @@ def embed_documents():
 def embed_query():
     request_data = request.get_json()
     query = request_data.get('query', '')
-    embeddings = list(embedding_model.query_embed(query))[0]
-    return jsonify(embeddings.tolist())
+    embeddings = list(embedding_model.query_embed(query))[0].tolist()
+    encoding = embedding_model.model.tokenize([query], is_doc=False)[0]
+    offsets = list(encoding.offsets)
+    assert len(offsets) + 1 == len(embeddings), f"Offsets length {len(encoding.offsets)} does not match embeddings length {len(embeddings)}"
+    offsets.insert(1, [0, 0])
+    result = []
+    for embedding, offsets in zip(embeddings, offsets):
+        result.append({
+            'embedding': embedding,
+            'offsets': list(offsets),
+        })
+    return jsonify(result)

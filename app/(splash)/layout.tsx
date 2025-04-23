@@ -1,3 +1,4 @@
+import ConvexClientProvider from "@/components/ConvexClientProvider";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ReactNode } from "react";
@@ -8,8 +9,9 @@ export default function SplashPageLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <header className="sticky top-0 z-10 flex h-20 border-b bg-background/80 px-4 backdrop-blur md:px-6">
+    <ConvexClientProvider>
+      <div className="flex min-h-screen w-full flex-col">
+        <header className="sticky top-0 z-10 flex h-20 border-b bg-background/80 px-4 backdrop-blur md:px-6">
         <nav className="container hidden w-full justify-between gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
           <Link href="/">
             <h1 className="text-base font-semibold">Next.js Template</h1>
@@ -28,8 +30,9 @@ export default function SplashPageLayout({
           <FooterLink href="https://nextjs.org/">Next.js</FooterLink> and{" "}
           <FooterLink href="https://ui.shadcn.com/">shadcn/ui</FooterLink>.
         </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </ConvexClientProvider>
   );
 }
 

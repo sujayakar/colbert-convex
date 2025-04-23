@@ -13,7 +13,9 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as indexing from "../indexing.js";
 import type * as text from "../text.js";
+import type * as xxhash from "../xxhash.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -24,7 +26,9 @@ import type * as text from "../text.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  indexing: typeof indexing;
   text: typeof text;
+  xxhash: typeof xxhash;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

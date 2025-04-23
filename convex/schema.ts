@@ -1,26 +1,37 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-// The schema is entirely optional.
-// You can delete this file (schema.ts) and the
-// app will continue to work.
-// The schema provides more precise TypeScript types.
 export default defineSchema({
-  texts: defineTable({
+  songs: defineTable({
+    indexed: v.boolean(),
+
+    text: v.string(),
     title: v.string(),
     artist: v.string(),
-    year: v.string(),
-    text: v.string(),    
-    indexed: v.boolean(),
+    year: v.string(),      
     views: v.number(),
   }).index("byIndexed", ["indexed"]),
 
-  textEmbeddings: defineTable({
-    textId: v.id("texts"),
+  // Songs get split into chunks with llama's sentence splitter.
+  chunks: defineTable({
+    songId: v.id("songs"),    
+    start: v.number(),
+    end: v.number(),
+  }).index("bySongId", ["songId"]),
+  
+  // Each chunk gets an embedding per word using the ColBERT model.
+  chunkEmbeddings: defineTable({
+    chunkId: v.id("chunks"),
     embeddingId: v.id("embeddings"),
-  }).index("byTextId", ["textId", "embeddingId"]).index("byEmbeddingId", ["embeddingId"]),
 
+    // These are positions within the original text.
+    start: v.number(),
+    end: v.number(),    
+  }).index("byChunkId", ["chunkId", "embeddingId"]).index("byEmbeddingId", ["embeddingId", "chunkId"]),
+
+  // We deduplicate embeddings by xxhash.
   embeddings: defineTable({      
+    hash: v.float64(),
     embedding: v.array(v.number()),
-  }).vectorIndex("embeddingVectorIndex", { vectorField: "embedding", dimensions: 96 }),  
+  }).vectorIndex("embeddingVectorIndex", { vectorField: "embedding", dimensions: 96 }).index("byHash", ["hash"]),  
 });
